@@ -1,1 +1,14 @@
-
+[
+  {
+    "id": "demo1",
+    "title": "Demo: Percentage Problem",
+    "question": "images/demo-question.png",
+    "solution": "images/demo-solution.png"
+  },
+  {
+    "id": "demo2",
+    "title": "Demo: Algebra",
+    "question": "images/demo2-q.png",
+    "solution": "images/demo2-a.png"
+  }
+]
