@@ -1,7 +1,7 @@
 /* Flash Cards + Pencil Pad
    - Front: question image on top + canvas pad
    - Back : solution image
-   - Double‑tap anywhere flips card
+   - Double-tap anywhere flips card
    - Notes persist per card in localStorage
 */
 const $ = (sel) => document.querySelector(sel);
@@ -14,6 +14,8 @@ const state = {
   redoStack: [],
   lastTap: 0,
   flipped: false,
+  // NEW: keep palm rejection by default (finger off)
+  allowFinger: false
 };
 
 // UI
@@ -49,12 +51,13 @@ function resizeCanvas() {
   const rect = pad.getBoundingClientRect();
   pad.width = Math.round(rect.width * dpr);
   pad.height = Math.round(rect.height * dpr);
+  ctx.setTransform(1,0,0,1,0,0); // reset before scaling
   ctx.scale(dpr, dpr);
   redraw();
 }
 window.addEventListener("resize", resizeCanvas);
 
-// Drawing
+// ---------- Drawing (UPDATED: Pencil-smooth handlers) ----------
 let drawing = false;
 let last = null;
 
@@ -67,8 +70,7 @@ function drawLine(a, b, erase, width) {
     ctx.globalCompositeOperation = "destination-out";
   } else {
     ctx.globalCompositeOperation = "source-over";
-    // Use currentColor-like stroke: light ink
-    ctx.strokeStyle = "#e5e7eb";
+    ctx.strokeStyle = "#e5e7eb"; // light ink on dark pad
   }
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
@@ -83,43 +85,55 @@ function pointerPos(e) {
 }
 
 function onPointerDown(e) {
-  // Allow only Pencil or mouse; ignore single-finger touch to enable page scroll
-  if (e.pointerType === "touch" && !e.isPrimary) return;
-  if (e.pointerType === "touch") return; // ignore finger to avoid accidental marks
+  // Pencil or mouse always; finger only if explicitly allowed
+  if (e.pointerType === "touch" && !state.allowFinger) return;
+
   drawing = true;
   last = pointerPos(e);
-  const pressure = e.pressure || 0.5;
-  state.currentStroke = [{ ...last, p: pressure }];
+  state.currentStroke = [{ ...last, p: e.pressure || 0.5 }];
+  try { pad.setPointerCapture(e.pointerId); } catch (_) {}
   e.preventDefault();
 }
+
 function onPointerMove(e) {
   if (!drawing) return;
-  const now = pointerPos(e);
-  const pressure = e.pressure || 0.5;
-  const width = (state.pen.erasing ? 24 : state.pen.size) * (0.6 + pressure * 0.8);
-  drawLine(last, now, state.pen.erasing, width);
-  state.currentStroke.push({ ...now, p: pressure, erase: state.pen.erasing, size: state.pen.size });
-  last = now;
+
+  // Use coalesced events (Safari/Chrome on iPad) for silky lines
+  const batch = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  for (const ev of batch) {
+    const now = pointerPos(ev);
+    const pressure = ev.pressure || 0.5;
+
+    // width = base size × pressure; bigger when erasing
+    const w = (state.pen.erasing ? 24 : state.pen.size) * (0.6 + pressure * 0.8);
+    drawLine(last, now, state.pen.erasing, w);
+
+    state.currentStroke.push({ ...now, p: pressure, erase: state.pen.erasing, size: state.pen.size });
+    last = now;
+  }
   e.preventDefault();
 }
+
 function onPointerUp(e) {
   if (!drawing) return;
   drawing = false;
+
   if (state.currentStroke && state.currentStroke.length > 1) {
     state.strokes.push({ points: state.currentStroke, erase: state.pen.erasing, size: state.pen.size });
     state.redoStack = [];
     persistPad();
   }
   state.currentStroke = null;
+  try { pad.releasePointerCapture(e.pointerId); } catch (_) {}
   e.preventDefault();
 }
 
-pad.addEventListener("pointerdown", onPointerDown);
-window.addEventListener("pointermove", onPointerMove);
-window.addEventListener("pointerup", onPointerUp);
-window.addEventListener("pointercancel", onPointerUp);
+pad.addEventListener("pointerdown", onPointerDown, { passive: false });
+window.addEventListener("pointermove", onPointerMove, { passive: false });
+window.addEventListener("pointerup", onPointerUp, { passive: false });
+window.addEventListener("pointercancel", onPointerUp, { passive: false });
 
-// Double‑tap flip (anywhere on main stage)
+// Double-tap flip (anywhere on main stage)
 ["#stage", "#front", "#back"].forEach(sel => {
   document.querySelector(sel).addEventListener("pointerup", (e) => {
     const t = Date.now();
@@ -153,14 +167,8 @@ function redo() {
   redraw(); persistPad();
 }
 function redraw() {
-  // clear canvas bg
   ctx.clearRect(0,0,pad.width, pad.height);
-  // restore grid bg via CSS (canvas is transparent)
   // replay strokes
-  ctx.save();
-  ctx.scale(dpr, dpr); // ensure correct scale if called before scale
-  ctx.restore();
-  let prev = null; // not used here
   for (const s of state.strokes) {
     for (let i = 1; i < s.points.length; i++) {
       const a = s.points[i-1], b = s.points[i];
@@ -216,8 +224,7 @@ function gotoCard(next) {
   title.textContent = card.title || ("Card " + (state.idx+1));
   counter.textContent = (state.idx + 1) + " / " + state.cards.length;
   setFlipped(false);
-  // Wait for layout to size properly before canvas resize
-  setTimeout(resizeCanvas, 30);
+  setTimeout(resizeCanvas, 30); // size canvas after layout
   restorePad();
 }
 
