@@ -1,1 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Flash Cards + Pencil Pad</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+</head>
+<body>
+  <header class="topbar">
+    <div class="left">
+      <button id="prevBtn" title="Previous (←)">←</button>
+      <span id="counter">1 / 1</span>
+      <button id="nextBtn" title="Next (→)">→</button>
+    </div>
+    <div class="center">
+      <strong id="cardTitle">Flash Card</strong>
+    </div>
+    <div class="right">
+      <button id="showFrontBtn" class="ghost">Front</button>
+      <button id="showBackBtn" class="ghost">Back</button>
+    </div>
+  </header>
 
+  <main id="stage">
+    <!-- 3D flip container -->
+    <section class="card3d" id="card3d">
+      <div class="face front" id="front">
+        <!-- (1) Question image viewer -->
+        <figure class="viewer">
+          <img id="qImg" alt="Question image" />
+        </figure>
+        <!-- (2) Notepad for Pencil writing -->
+        <section class="padWrap">
+          <div class="padToolbar" id="padToolbar">
+            <button id="penBtn" title="Pen">✏️</button>
+            <button id="eraserBtn" title="Eraser">🧽</button>
+            <label class="slider">
+              <input type="range" id="size" min="1" max="30" value="3" />
+              <span id="sizeVal">3</span>
+            </label>
+            <button id="undoBtn" title="Undo">↶</button>
+            <button id="redoBtn" title="Redo">↷</button>
+            <button id="clearBtn" title="Clear">🗑</button>
+            <button id="saveBtn" title="Save Pad as PNG">⤓ PNG</button>
+            <span class="hint">Double‑tap anywhere to flip</span>
+          </div>
+          <canvas id="pad" class="pad" touch-action="none"></canvas>
+        </section>
+      </div>
+
+      <div class="face back" id="back">
+        <figure class="viewer">
+          <img id="aImg" alt="Solution image" />
+          <figcaption>Double‑tap to go back</figcaption>
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bottombar">
+    <div>Tip: Pencil draws, two‑finger pan to scroll page. Your notes auto‑save per card.</div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
