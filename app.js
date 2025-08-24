@@ -1,9 +1,4 @@
-/* Flash Cards + Pencil Pad
-   - Front: question image on top + canvas pad
-   - Back : solution image
-   - Double-tap anywhere flips card
-   - Notes persist per card in localStorage
-*/
+/* Flash Cards + Pencil Pad */
 const $ = (sel) => document.querySelector(sel);
 
 const state = {
@@ -22,22 +17,22 @@ const qImg = $("#qImg");
 const aImg = $("#aImg");
 const card3d = $("#card3d");
 const counter = $("#counter");
-const title = $("#cardTitle");
-const pad = $("#pad");
-const size = $("#size");
+const title   = $("#cardTitle");
+const pad     = $("#pad");
+const size    = $("#size");
 const sizeVal = $("#sizeVal");
 
 // Buttons
 $("#prevBtn").onclick = () => gotoCard(state.idx - 1);
 $("#nextBtn").onclick = () => gotoCard(state.idx + 1);
 $("#showFrontBtn").onclick = () => setFlipped(false);
-$("#showBackBtn").onclick = () => setFlipped(true);
-$("#penBtn").onclick = () => { state.pen.erasing = false; };
+$("#showBackBtn").onclick  = () => setFlipped(true);
+$("#penBtn").onclick    = () => { state.pen.erasing = false; };
 $("#eraserBtn").onclick = () => { state.pen.erasing = true; };
 $("#clearBtn").onclick = clearPad;
-$("#undoBtn").onclick = undo;
-$("#redoBtn").onclick = redo;
-$("#saveBtn").onclick = savePNG;
+$("#undoBtn").onclick  = undo;
+$("#redoBtn").onclick  = redo;
+$("#saveBtn").onclick  = savePNG;
 
 size.oninput = () => { state.pen.size = +size.value; sizeVal.textContent = size.value; };
 
@@ -47,7 +42,7 @@ let dpr = Math.max(1, window.devicePixelRatio || 1);
 
 function resizeCanvas() {
   const rect = pad.getBoundingClientRect();
-  pad.width = Math.round(rect.width * dpr);
+  pad.width  = Math.round(rect.width  * dpr);
   pad.height = Math.round(rect.height * dpr);
   ctx.setTransform(1,0,0,1,0,0); // reset before scaling
   ctx.scale(dpr, dpr);
@@ -63,20 +58,18 @@ function pointerPos(e) {
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 }
 const INK = "#f3f4f6";
-
-function dist(a, b){ const dx=b.x-a.x, dy=b.y-a.y; return Math.hypot(dx,dy); }
-function mid(a, b){ return { x:(a.x+b.x)/2, y:(a.y+b.y)/2 }; }
+function dist(a,b){ const dx=b.x-a.x, dy=b.y-a.y; return Math.hypot(dx,dy); }
+function mid(a,b){ return { x:(a.x+b.x)/2, y:(a.y+b.y)/2 }; }
 function widthFrom(erase, base, pressure, v){
-  // v ~ px/ms; map higher velocity -> thinner line
-  const k = Math.min(1, v / 0.02);     // 0..1 around ~50 px/s
-  const vel = 1 - 0.5*k;                // 1..0.5
+  const k = Math.min(1, v / 0.02);     // velocity factor 0..1
+  const vel = 1 - 0.5*k;               // thinner when faster
   const press = 0.6 + 0.8*(pressure || 0.5);
-  const w = (erase ? 24 : base) * vel * press;
-  return Math.max(0.5, w);
+  return Math.max(0.5, (erase ? 24 : base) * vel * press);
 }
 
 function onPointerDown(e) {
-  if (e.pointerType === "touch" && !state.allowFinger) return; // palm rejection
+  // Pencil/mouse always; finger only if explicitly allowed
+  if (e.pointerType === "touch" && !state.allowFinger) return;
 
   drawing = true;
   const p = pointerPos(e);
@@ -101,8 +94,8 @@ function onPointerMove(e) {
       const n  = pts.length;
       const p0 = pts[n-3], p1 = pts[n-2], p2 = pts[n-1];
       const m1 = mid(p0, p1), m2 = mid(p1, p2);
-      const dt = Math.max(8, (p2.t - p1.t) || 16);     // ms
-      const v  = dist(p1, p2) / dt;                    // px/ms
+      const dt = Math.max(8, (p2.t - p1.t) || 16);
+      const v  = dist(p1, p2) / dt;
       const w  = widthFrom(state.pen.erasing, state.pen.size, p1.p, v);
 
       ctx.save();
@@ -111,7 +104,6 @@ function onPointerMove(e) {
       ctx.lineWidth = w;
       ctx.globalCompositeOperation = state.pen.erasing ? "destination-out" : "source-over";
       if (!state.pen.erasing) ctx.strokeStyle = INK;
-
       ctx.beginPath();
       ctx.moveTo(m1.x, m1.y);
       ctx.quadraticCurveTo(p1.x, p1.y, m2.x, m2.y);
@@ -126,7 +118,6 @@ function onPointerUp(e) {
   if (!drawing) return;
   drawing = false;
 
-  // finalize tiny tail if only 2 pts
   const pts = state.currentStroke;
   if (pts && pts.length === 2) {
     const [a,b] = pts;
@@ -150,18 +141,28 @@ function onPointerUp(e) {
   e.preventDefault();
 }
 
+// Pointer + touch listeners (touch blocked to prevent page scroll)
 pad.addEventListener("pointerdown", onPointerDown, { passive:false });
 window.addEventListener("pointermove", onPointerMove, { passive:false });
 window.addEventListener("pointerup", onPointerUp, { passive:false });
 window.addEventListener("pointercancel", onPointerUp, { passive:false });
 
-// ---------- Flip on double tap ----------
+pad.addEventListener("touchstart", (e)=> e.preventDefault(), { passive:false });
+pad.addEventListener("touchmove",  (e)=> e.preventDefault(), { passive:false });
+pad.addEventListener("touchend",   (e)=> e.preventDefault(), { passive:false });
+pad.addEventListener("gesturestart", (e)=> e.preventDefault(), { passive:false }); // Safari pinch
+pad.addEventListener("gesturechange",(e)=> e.preventDefault(), { passive:false });
+pad.addEventListener("gestureend",   (e)=> e.preventDefault(), { passive:false });
+pad.addEventListener("contextmenu",  (e)=> e.preventDefault());
+
+// ---------- Flip on double tap (ignore while writing / on canvas) ----------
 ["#stage", "#front", "#back"].forEach(sel => {
   document.querySelector(sel).addEventListener("pointerup", (e) => {
+    if (drawing || e.target === pad) { state.lastTap = 0; return; }
     const t = Date.now();
     if (t - state.lastTap < 300) setFlipped(!state.flipped);
     state.lastTap = t;
-  });
+  }, { passive:false });
 });
 function setFlipped(v) {
   state.flipped = v;
@@ -169,18 +170,16 @@ function setFlipped(v) {
 }
 
 // ---------- Edit ops ----------
-function clearPad() { state.strokes = []; state.redoStack = []; redraw(); persistPad(); }
-function undo()     { const s = state.strokes.pop(); if (s) state.redoStack.push(s); redraw(); persistPad(); }
-function redo()     { const s = state.redoStack.pop(); if (s) state.strokes.push(s); redraw(); persistPad(); }
+function clearPad(){ state.strokes=[]; state.redoStack=[]; redraw(); persistPad(); }
+function undo(){ const s=state.strokes.pop(); if(s) state.redoStack.push(s); redraw(); persistPad(); }
+function redo(){ const s=state.redoStack.pop(); if(s) state.strokes.push(s); redraw(); persistPad(); }
 
-// Repaint saved strokes with same smoothing
+// Repaint saved strokes (same smoothing)
 function redraw() {
-  ctx.clearRect(0,0,pad.width, pad.height);
-
+  ctx.clearRect(0,0,pad.width,pad.height);
   for (const s of state.strokes) {
     const pts = s.points;
     if (!pts || pts.length < 2) continue;
-
     for (let i = 2; i < pts.length; i++) {
       const p0 = pts[i-2], p1 = pts[i-1], p2 = pts[i];
       const m1 = mid(p0, p1), m2 = mid(p1, p2);
@@ -207,7 +206,7 @@ function persistKey() {
   return card ? 'pad:' + card.id : 'pad:__none__';
 }
 function persistPad() {
-  try { localStorage.setItem(persistKey(), JSON.stringify(state.strokes)); } catch(e) {}
+  try { localStorage.setItem(persistKey(), JSON.stringify(state.strokes)); } catch(_) {}
 }
 function restorePad() {
   const saved = localStorage.getItem(persistKey());
@@ -260,7 +259,7 @@ function savePNG() {
   const rect = pad.getBoundingClientRect();
   const scale = dpr;
   const tmp = document.createElement('canvas');
-  tmp.width  = Math.round(rect.width * scale);
+  tmp.width  = Math.round(rect.width  * scale);
   tmp.height = Math.round(rect.height * scale);
   const tctx = tmp.getContext('2d');
 
@@ -287,7 +286,6 @@ function savePNG() {
       tctx.restore();
     }
   }
-
   for (const s of state.strokes) drawStroke(s.points, s.erase, s.size);
 
   const url = tmp.toDataURL('image/png');
