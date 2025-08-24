@@ -1,1 +1,102 @@
+/* Reset + Layout */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+  background: #0b1020;
+  color: #e5e7eb;
+  -webkit-font-smoothing: antialiased;
+}
+button {
+  background: #1f2937;
+  color: #e5e7eb;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 16px;
+}
+button:hover { filter: brightness(1.08); }
+button.ghost { background: transparent; border-color: #475569; }
+.topbar, .bottombar {
+  position: sticky;
+  z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: env(safe-area-inset-top) 12px 8px 12px;
+  background: linear-gradient(to bottom, #0f172a, rgba(15,23,42,0.85));
+  border-bottom: 1px solid #1f2937;
+}
+.bottombar {
+  padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px) 12px;
+  border-top: 1px solid #1f2937;
+  border-bottom: 0;
+  background: linear-gradient(to top, #0b1020, rgba(11,16,32,0.85));
+  position: sticky;
+  bottom: 0;
+}
+.topbar .left, .topbar .right { display: flex; gap: 8px; align-items: center; }
+.topbar .center { text-align: center; flex: 1; }
 
+#stage {
+  height: calc(100dvh - 110px);
+  padding: 10px;
+}
+.card3d {
+  position: relative;
+  width: min(1100px, 100%);
+  height: 100%;
+  margin: 0 auto;
+  perspective: 1400px;
+}
+.face {
+  position: absolute; inset: 0;
+  border: 1px solid #243042;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0d1428;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  display: grid;
+  grid-template-rows: 45% 55%;
+}
+.face .viewer {
+  margin: 0;
+  border-bottom: 1px dashed #233047;
+  display: grid; place-items: center;
+  background: radial-gradient(80% 50% at 50% 30%, #0e1733, #0a0f23 70%);
+}
+.face .viewer img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain;
+}
+.padWrap {
+  position: relative;
+}
+.padToolbar {
+  position: absolute; left: 10px; right: 10px; top: 10px;
+  display: flex; gap: 8px; align-items: center;
+  padding: 6px 8px;
+  background: rgba(17,24,39,0.6); backdrop-filter: blur(6px);
+  border: 1px solid #334155; border-radius: 10px;
+}
+.padToolbar .hint { margin-left: auto; opacity: .8; font-size: 13px; }
+.slider { display:flex; align-items:center; gap:6px; }
+.slider input { width: 120px; }
+.pad {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none; /* important for Pencil */
+  background: repeating-linear-gradient(transparent, transparent 31px, rgba(255,255,255,.03) 31px, rgba(255,255,255,.03) 32px);
+  cursor: crosshair;
+}
+.back { transform: rotateY(180deg); }
+.card3d.flip .front { transform: rotateY(180deg); }
+.card3d.flip .back  { transform: rotateY(360deg); }
+
+/* Small screens */
+@media (max-width: 640px) {
+  .face { grid-template-rows: 40% 60%; }
+  .padToolbar .hint { display: none; }
+}
