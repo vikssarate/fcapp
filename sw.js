@@ -1,5 +1,5 @@
 // Simple cache-first service worker (static assets + images + questions.json)
-const CACHE = 'flashpad-v4';
+const CACHE = 'flashpad-v5';
 const ASSETS = [
   './',
   './index.html',
